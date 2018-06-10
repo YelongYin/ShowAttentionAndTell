@@ -7,6 +7,7 @@ from tensorflow.python.platform import gfile
 import re
 import json
 import tensorflow as tf
+import numpy as np
 
 # Special vocabulary symbols - we always put them at the start.
 _PAD = b"_PAD"
@@ -159,3 +160,24 @@ def sentence_to_token_ids(sentence, vocabulary,
         return [vocabulary.get(w, UNK_ID) for w in words]
     # Normalize digits by 0 before looking words up in the vocabulary.
     return [vocabulary.get(_DIGIT_RE.sub(b"0", w), UNK_ID) for w in words]
+
+
+def load_glove(glove_path_directory, dim=100):
+    """
+    Args:
+        glove_path: path of glove
+        dim:dimension of embedding matrix
+    Return:
+        glove embedding matrix
+    """
+    word2vec = {}
+    print("==> loading glove")
+    with open(glove_path_directory + "/glove.6B.%s.txt" % str(dim)) as f:
+        for line in f:
+            l = line.split()
+            word2vec[l[0]] = list(map(float, l[1:]))
+    print("==> glove is loaded")
+    return word2vec
+
+
+
