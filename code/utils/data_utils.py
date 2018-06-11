@@ -198,5 +198,32 @@ def load_glove(glove_path_directory, dim=100):
     print("==> glove is loaded")
     return word2vec
 
+def get_image_vec(file_path,img_vec_file):
+    """
+    from dictory obtain image path then convert to image vector,and writer to TFrecored file
+    :param file_path:
+    :param img_vec_file:
+    :return:
+    """
+    img_caption=get_img_caption(file_path)
+    writer=tf.python_io.TFRecordWriter(img_vec_file)
+    all_img_vec=[]
+    for key in img_caption:
+        image=tf.gfile.FastGFile(key).read()
+        image=tf.image.decode_jpeg(image)
+        image=tf.image.convert_image_dtype(image,dtype=tf.float32)
+        image=tf.image.resize_images(image,[224,224])
+        image=image.tostring()
+        example=tf.train.Example(
+            features=tf.train.Features(
+                feature={
+                    'image':tf.train.Feature(byte_list=tf.train.BytesList(value=[image]))
+                }
+            )
+        )
+        all_img_vec.append(image)
+        writer.write(example.SerializeToString())
+    writer.close()
+    return all_img_vec
 
 
