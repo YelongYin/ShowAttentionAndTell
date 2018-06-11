@@ -47,6 +47,25 @@ def get_captions(file_path, dataset="coco"):
             return captions
 
 
+def get_img_caption(file_path, dataset="coco"):
+    """
+    This function is use to get map of image_id:caption,like {185832:  'a guy playing wii while his friends watch him'}
+    which mean the 185832 image describe  a guy playing wii while his friends watch him;
+    Args:
+        file_path: location of your caption file just like where is your captions_train2014.json
+        dataset:
+    Returns:
+         A map of {iamge_id: caption}
+    """
+    img_caption = {}
+    with open(file_path) as f:
+        caption_data = json.load(f)
+    annotations = caption_data["annotations"]
+    for annotation in annotations:
+        img_caption[annotation['image_id']] = annotation['caption']
+    return img_caption
+
+
 def basic_tokenizer(sentence):
     """
         Very basic tokenizer: split the sentence into a list of tokens.
