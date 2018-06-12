@@ -34,6 +34,7 @@ class model(object):
 
         self.decode_word_W = self.init_weight(self.embedding_size, self.vocab_size, name='decode_word_W')
         self.decode_word_b = self.init_bias(self.vocab_size, name="decode_word_b")
+
     def init_weight(self, dim_in, dim_out, name=None, stddev=1.0):
         return tf.Variable(tf.truncated_normal([dim_in, dim_out], stddev=stddev/math.sqrt(float(dim_in))), name=name)
 
@@ -65,7 +66,7 @@ class model(object):
         # shape [batch_size * L, 1]
         alpha = tf.matmul(context_encode_flat, self.attn_W) + self.attn_b
         # shape [batch_size, L]
-        alpha = tf.reshape(alpha, self.L)
+        alpha = tf.reshape(alpha, [-1, self.L])
         alpha = tf.nn.softmax(alpha)
 
         return alpha
