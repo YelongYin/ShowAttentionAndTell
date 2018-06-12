@@ -3,6 +3,7 @@ import tensorflow.contrib as tc
 import math
 
 
+#qwwwwww
 class model(object):
 
     def __init__(self, config):
@@ -177,5 +178,5 @@ class model(object):
 
     def optimizer(self, learning_rate, loss):
         train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
-        return train_op
 
+        return train_op
