@@ -3,6 +3,7 @@ import tensorflow.contrib as tc
 import math
 
 
+#qwwwwww
 class model(object):
 
     def __init__(self, config):
@@ -12,6 +13,8 @@ class model(object):
         self.embedding_size = config.embedding_size
         self.hidden_units = config.hidden_unit
         self.batch_size = config.batch_size
+        self._end=2
+        self._pad=0
 
         self.init_h_W = self.init_weight(self.D, self.hidden_units, name='init_h_W')
         self.init_h_b = self.init_bias(self.hidden_units, name='init_h_b')
@@ -163,19 +166,29 @@ class model(object):
         Embedding caption
         :param embedding_matrix:
         :param caption:the token of caption
-        :return:
+        :return:word_embed[n_time_step,embedding_size]
         '''
         return tf.nn.embedding_lookup(embedding_matrix, caption)
 
-    def loss(self, logit, caption, step):
-        labels = tf.expand_dims(caption[:, step - 1], 1)
+    def loss(self, logit, captions, t):
+        '''
+        calculate the loss of step t
+        :param logit: the predict[batch_size,vocab_size]
+        :param captions: the real captions[batch_size,n_time_step]
+        :param t: step of LSTM
+        :return: loss
+        '''
+        captions_out = captions[:, 1:]
+        mask = tf.to_float(tf.not_equal(captions_out, self._end or self._pad))
+        labels = tf.expand_dims(captions[:, t], 1)
         indices = tf.expand_dims(tf.range(0, self.batch_size, 1), 1)
         concated = tf.concat(1, [indices, labels])
         onehot_labels = tf.sparse_to_dense(concated, tf.stack([self.batch_size, self.vocab_size]), 1.0, 0.0)
-        loss = tf.nn.softmax_cross_entropy_with_logits(logit, onehot_labels)
+        loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(logits=logit, labels=onehot_labels)*mask[:,t])
+        loss=loss/tf.to_float(self.batch_size)
         return loss
 
     def optimizer(self, learning_rate, loss):
         train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
-        return train_op
 
+        return train_op
