@@ -1,14 +1,18 @@
 import  tensorflow as tf
 import utils.VGG16 as VGG
 import pickle
+from Enconfig import Enconfig
+from utils import  data_utils
 class model():
-    def __init__(self,config):
-        self.batch_size=config.batch_size
-        self.img_vec_file=config.img_vec_file
-        self.vgg_parameter_file=config.vgg_parameter_file
-        self.feature5_1_file=config.feature5_1_file
-        self.feature5_2_file=config.feature5_2_file
-        self.feature5_3_file=config.feature5_3_file
+    def __init__(self,):
+        self.batch_size=Enconfig.batch_size
+        self.img_vec_file=Enconfig.img_vec_file
+        self.vgg_parameter_file=Enconfig.vgg_parameter_file
+        self.feature5_1_file=Enconfig.feature5_1_file
+        self.feature5_2_file=Enconfig.feature5_2_file
+        self.feature5_3_file=Enconfig.feature5_3_file
+        self.file_path=Enconfig.file_path
+        self.img_path=Enconfig.img_path
 
 
 
@@ -27,6 +31,12 @@ class model():
         #images=tf.convert_to_tensor(images)
         img_batch=tf.train.batch(images,batch_size=self.batch_size,num_threads=32,capacity=1000)
         return img_batch
+    def  get_img_vec_file(self):
+        print("-------output the vector of the image to TFrecored file")
+        all_img_vec=data_utils.get_image_vec(self.file_path,self.img_path,self.img_vec_file)
+        return all_img_vec
+
+
     def get_img_feature(self):
         f5_1=open(self.feature5_1_file,'w')
         f5_2=open(self.feature5_2_file,'w')
@@ -51,6 +61,10 @@ class model():
             pickle.dump(re_conv5_2_features,f5_2)
             pickle.dump(re_conv5_3_features,f5_3)
 
+with tf.Session() as sess:
+    m=model( )
+    all_img_file=m.get_img_vec_file()
+    sess.run(all_img_file)
 
 
 
