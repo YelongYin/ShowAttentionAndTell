@@ -64,6 +64,7 @@ class model():
 with tf.Session() as sess:
     m=model( )
     all_img_file=m.get_img_vec_file()
+    sess.run(all_img_file)
 
 
 
