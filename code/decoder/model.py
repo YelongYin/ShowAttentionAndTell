@@ -17,6 +17,8 @@ class model():
         self.init_c_W = self.init_weight(self.D, self.hidden_unit, name='init_c_W')
         self.init_c_b = self.init_bias(self.hidden_unit, name='init_c_b')
         self.embedding_matrix=self.init_embedding()
+        self._end = 2#EOS
+        self._pad = 0#PAD
 
     def init_LSTM(self,a):
         '''
@@ -44,16 +46,27 @@ class model():
         Embedding caption
         :param embedding_matrix:
         :param caption:the token of caption
-        :return:
+        :return: word_embed[n_time_step,embedding_size]
         '''
         return tf.nn.embedding_lookup(embedding_matrix,caption)
 
-    def loss(self,logit,caption,step):
-        labels = tf.expand_dims(caption[:, step-1], 1)
+    def loss(self,logit,captions,t):
+        '''
+        calculate the loss of step t
+        :param logit:the predicted word of step t
+        :param captions:the real caption of img
+        :param t:the step of LSTM
+        :return:
+        '''
+        captions_out = captions[:, 1:]
+        mask = tf.to_float(tf.not_equal(captions_out, self._pad or self._end))
+        labels = tf.expand_dims(captions[:, t], 1)
         indices = tf.expand_dims(tf.range(0, self.batch_size, 1), 1)
         concated = tf.concat(1, [indices, labels])
         onehot_labels = tf.sparse_to_dense(concated, tf.stack([self.batch_size, self.vocab_size]), 1.0, 0.0)
-        loss=tf.nn.softmax_cross_entropy_with_logits(logit,onehot_labels)
+        loss=tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(logit,onehot_labels)*mask[:, t])
+        loss=loss/tf.to_float(self.batch_size)
+        return loss
 
     def optimizer(self,learning_rate,loss):
         train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
