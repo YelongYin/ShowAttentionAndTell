@@ -1,8 +1,6 @@
 import tensorflow as tf
-
+import tensorflow.contrib as tc
 import math
-
-from config.Enconfig import Enconfig
 
 
 class model(object):
@@ -177,4 +175,7 @@ class model(object):
         loss = tf.nn.softmax_cross_entropy_with_logits(logit, onehot_labels)
         return loss
 
+    def optimizer(self, learning_rate, loss):
+        train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+        return train_op
 
