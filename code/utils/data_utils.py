@@ -8,6 +8,7 @@ import re
 import json
 import tensorflow as tf
 import numpy as np
+from Enconfig import Enconfig
 
 # Special vocabulary symbols - we always put them at the start.
 _PAD = b"_PAD"
@@ -198,7 +199,7 @@ def load_glove(glove_path_directory, dim=100):
     print("==> glove is loaded")
     return word2vec
 
-def get_image_vec(file_path,img_vec_file):
+def get_image_vec(file_path,img_path,img_vec_file):
     """
     from dictory obtain image path then convert to image vector,and writer to TFrecored file
     :param file_path:
@@ -209,21 +210,27 @@ def get_image_vec(file_path,img_vec_file):
     writer=tf.python_io.TFRecordWriter(img_vec_file)
     all_img_vec=[]
     for key in img_caption:
-        image=tf.gfile.FastGFile(key).read()
-        image=tf.image.decode_jpeg(image)
-        image=tf.image.convert_image_dtype(image,dtype=tf.float32)
-        image=tf.image.resize_images(image,[224,224])
-        image=image.tostring()
+        image=tf.gfile.FastGFile(img_path+'COCO_train2014_'+str(key).zfill(12)+'.jpg','rb').read()
+        image=tf.image.decode_jpeg(image,channels=3)
+        image=tf.image.resize_image_with_crop_or_pad(image,224,224)
+        image=tf.image.per_image_standardization(image)
+        all_img_vec.append(image)
+        #image=tf.image.convert_image_dtype(image,dtype=tf.float32)
+        image=image.eval().tostring()
         example=tf.train.Example(
             features=tf.train.Features(
                 feature={
-                    'image':tf.train.Feature(byte_list=tf.train.BytesList(value=[image]))
+                    'image':tf.train.Feature(bytes_list=tf.train.BytesList(value=[image]))
                 }
             )
         )
-        all_img_vec.append(image)
+
         writer.write(example.SerializeToString())
+    print('Done!')
     writer.close()
     return all_img_vec
 
+with tf.Session() as sess:
+    all_img_vec=get_image_vec(Enconfig.file_path,Enconfig.img_path,Enconfig.img_vec_file)
+    sess.run(all_img_vec)
 
