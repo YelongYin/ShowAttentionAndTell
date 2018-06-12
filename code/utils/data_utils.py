@@ -199,4 +199,34 @@ def load_glove(glove_path_directory, dim=100):
     return word2vec
 
 
+def create_vector(word, word2vec, embed_size, silent=True):
+    """
+        if the word is missing from Glove, create some fake vector and store in glove!
+    Args:
+        word: word like "dog","cat" ,etc
+        word2vec: glove or word2vec matrix
+        embed_size
+        silent: whether print information
+    """
+    vector = np.random.uniform(0.0, 1.0, (embed_size,))
+    word2vec[word] = vector
+    if not silent:
+        print("utils.py::create_vector => %s is missing" % word)
+    return vector
 
+
+def create_embedding(word2vec, vocab_list, embed_size):
+    """
+        create embedding matrix if use glove or word2vec
+    Args:
+        word2vec: glove or word2vec matrix
+        vocab_list: vocab list
+        embed_size
+    Return:
+        embedding_matrix
+    """
+    embedding = np.zeros((len(vocab_list), embed_size))
+    for i in range(len(vocab_list)):
+        word = vocab_list[i]
+        embedding[i] = word2vec[word]
+    return embedding
