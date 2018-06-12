@@ -47,6 +47,25 @@ def get_captions(file_path, dataset="coco"):
             return captions
 
 
+def get_img_caption(file_path, dataset="coco"):
+    """
+    This function is use to get map of image_id:caption,like {185832:  'a guy playing wii while his friends watch him'}
+    which mean the 185832 image describe  a guy playing wii while his friends watch him;
+    Args:
+        file_path: location of your caption file just like where is your captions_train2014.json
+        dataset:
+    Returns:
+         A map of {iamge_id: caption}
+    """
+    img_caption = {}
+    with open(file_path) as f:
+        caption_data = json.load(f)
+    annotations = caption_data["annotations"]
+    for annotation in annotations:
+        img_caption[annotation['image_id']] = annotation['caption']
+    return img_caption
+
+
 def basic_tokenizer(sentence):
     """
         Very basic tokenizer: split the sentence into a list of tokens.
@@ -180,4 +199,34 @@ def load_glove(glove_path_directory, dim=100):
     return word2vec
 
 
+def create_vector(word, word2vec, embed_size, silent=True):
+    """
+        if the word is missing from Glove, create some fake vector and store in glove!
+    Args:
+        word: word like "dog","cat" ,etc
+        word2vec: glove or word2vec matrix
+        embed_size
+        silent: whether print information
+    """
+    vector = np.random.uniform(0.0, 1.0, (embed_size,))
+    word2vec[word] = vector
+    if not silent:
+        print("utils.py::create_vector => %s is missing" % word)
+    return vector
 
+
+def create_embedding(word2vec, vocab_list, embed_size):
+    """
+        create embedding matrix if use glove or word2vec
+    Args:
+        word2vec: glove or word2vec matrix
+        vocab_list: vocab list
+        embed_size
+    Return:
+        embedding_matrix
+    """
+    embedding = np.zeros((len(vocab_list), embed_size))
+    for i in range(len(vocab_list)):
+        word = vocab_list[i]
+        embedding[i] = word2vec[word]
+    return embedding

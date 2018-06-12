@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow.contrib as tc
 import math
 
+
 #qwwwwww
 class model(object):
 
@@ -121,6 +122,7 @@ class model(object):
         """
         This function is used to predict time-step word(one step) and the formula is
         y_hat = Relu(h * w + b) and we have used dropout here
+
         Args:
             _h: hidden state of lstm (shape:[batch_size, hidden_units])
         Returns:
@@ -176,4 +178,5 @@ class model(object):
 
     def optimizer(self, learning_rate, loss):
         train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+
         return train_op
