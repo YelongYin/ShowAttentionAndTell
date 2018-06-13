@@ -266,3 +266,26 @@ def create_embedding(word2vec, vocab_list, embed_size):
         word = vocab_list[i]
         embedding[i] = word2vec[word]
     return embedding
+
+def split_bucket(captions,threshold):
+    '''
+    split cpations to some subsets accord the length threshold
+    :param captions: original data
+    :param threshold: length threshold
+    :return: subsets of after splitting[len(threshold)+1]
+    '''
+    captions_length=[len(caption) for caption in captions]
+    num_subdata = len(threshold)
+    split_captions = []
+    for i in range(num_subdata+1):
+        split_captions.append([])
+    for i in range(len(captions_length)):
+        for j in range(num_subdata):
+            if(captions_length[i] <= threshold[j]):
+                split_captions[j].append(captions[i])
+                break
+            elif(j==num_subdata-1):
+                split_captions[j+1].append(data[i])
+                break
+    return split_captions
+
