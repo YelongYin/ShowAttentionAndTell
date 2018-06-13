@@ -8,7 +8,7 @@ import re
 import json
 import tensorflow as tf
 import numpy as np
-from Enconfig import Enconfig
+from config.Enconfig import Enconfig
 
 # Special vocabulary symbols - we always put them at the start.
 _PAD = b"_PAD"
@@ -22,8 +22,8 @@ EOS_ID = 2
 UNK_ID = 3
 
 # Regular expressions used to tokenize.
-_WORD_SPLIT = re.compile("([.,!?\"':;)(])")
-_DIGIT_RE = re.compile("\d")
+_WORD_SPLIT = re.compile(b"([.,!?\"':;)(])")
+_DIGIT_RE = re.compile(b"\d")
 
 
 def get_captions(file_path, dataset="coco"):
@@ -200,28 +200,27 @@ def load_glove(glove_path_directory, dim=100):
     return word2vec
 
 
-def get_image_vec(file_path,img_path,img_vec_file):
+def get_image_vec(file_path, iamge_path, img_vec_file):
     """
     from dictory obtain image path then convert to image vector,and writer to TFrecored file
     :param file_path:
     :param img_vec_file:
     :return:
     """
-    img_caption=get_img_caption(file_path)
-    writer=tf.python_io.TFRecordWriter(img_vec_file)
-    all_img_vec=[]
+    img_caption = get_img_caption(file_path)
+    writer = tf.python_io.TFRecordWriter(img_vec_file)
+    all_img_vec = []
     for key in img_caption:
-        image=tf.gfile.FastGFile(img_path+'COCO_train2014_'+str(key).zfill(12)+'.jpg','rb').read()
-        image=tf.image.decode_jpeg(image,channels=3)
-        image=tf.image.resize_image_with_crop_or_pad(image,224,224)
-        image=tf.image.per_image_standardization(image)
+        image = tf.gfile.FastGFile(iamge_path+'COCO_train2014_'+str(key).zfill(12)+'.jpg', 'rb').read()
+        image = tf.image.decode_jpeg(image, channels=3)
+        image = tf.image.resize_image_with_crop_or_pad(image, 224, 224)
+        image = tf.image.per_image_standardization(image)
         all_img_vec.append(image)
-        #image=tf.image.convert_image_dtype(image,dtype=tf.float32)
-        image=image.eval().tostring()
-        example=tf.train.Example(
+        image = image.eval().tostring()
+        example = tf.train.Example(
             features=tf.train.Features(
                 feature={
-                    'image':tf.train.Feature(bytes_list=tf.train.BytesList(value=[image]))
+                    'image': tf.train.Feature(bytes_list=tf.train.BytesList(value=[image]))
                 }
             )
         )
@@ -230,8 +229,6 @@ def get_image_vec(file_path,img_path,img_vec_file):
     print('Done!')
     writer.close()
     return all_img_vec
-
-
 
 
 def create_vector(word, word2vec, embed_size, silent=True):
@@ -248,7 +245,6 @@ def create_vector(word, word2vec, embed_size, silent=True):
     if not silent:
         print("utils.py::create_vector => %s is missing" % word)
     return vector
-
 
 
 def create_embedding(word2vec, vocab_list, embed_size):
