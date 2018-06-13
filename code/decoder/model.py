@@ -1,8 +1,8 @@
 import tensorflow as tf
 import tensorflow.contrib as tc
 import math
-
-
+import numpy as np
+from code.utils import data_utils
 #qwwwwww
 class model(object):
 
@@ -13,6 +13,7 @@ class model(object):
         self.embedding_size = config.embedding_size
         self.hidden_units = config.hidden_unit
         self.batch_size = config.batch_size
+        self.n_time_step = config.n_time_step
         self._end=2
         self._pad=0
 
@@ -182,13 +183,48 @@ class model(object):
         mask = tf.to_float(tf.not_equal(captions_out, self._end or self._pad))
         labels = tf.expand_dims(captions[:, t], 1)
         indices = tf.expand_dims(tf.range(0, self.batch_size, 1), 1)
-        concated = tf.concat(1, [indices, labels])
+        concated = tf.concat([indices, labels], 1)
         onehot_labels = tf.sparse_to_dense(concated, tf.stack([self.batch_size, self.vocab_size]), 1.0, 0.0)
-        loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(logits=logit, labels=onehot_labels)*mask[:,t])
-        loss=loss/tf.to_float(self.batch_size)
+        loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(logits=logit, labels=onehot_labels)*mask[:, t])
+        loss = loss/tf.to_float(self.batch_size)
         return loss
 
     def optimizer(self, learning_rate, loss):
         train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 
         return train_op
+
+    def build_generator(self):
+        context = tf.placeholder("float32", [self.batch_size, self.ctx_shape[0], self.ctx_shape[1]])
+        context_encode = tf.matmul(tf.squeeze(context), self.image_att_W)
+        h, c = self.init_LSTM(context)
+        word_emb = tf.zeros([1, self.embedding_size])
+        generated_words=[]
+        logit_list=[]
+        for t in range(self.n_time_step):
+            context_encode = context_encode + tf.matmul(h, self.hidden_att_W) + self.pre_att_b
+            context_encode = tf.nn.tanh(context_encode)
+            alpha = self._attention(h,context_encode)
+            weighted_context = tf.reduce_sum(tf.squeeze(context) * alpha, 0)
+            weighted_context = tf.expand_dims(weighted_context, 0)
+            h, o, c = self._lstm_function(word_emb, h, weighted_context, c)
+            logits_word = self._predict(h)
+            max_prob_word = tf.argmax(logits_word, 1)
+
+            word_emb = tf.nn.embedding_lookup(self.embedding_matrix, max_prob_word)
+
+            generated_words.append(max_prob_word)
+            logit_list.append(logits_word)
+
+        return context, generated_words, logit_list
+
+    def test(self,model_path,test_feat):
+        feat = np.load(test_feat)
+        context, generated_words, logit_list = self.build_generator()
+        sess = tf.InteractiveSession()
+        saver = tf.train.Saver()
+        saver.restore(sess, model_path)
+        generated_word_index = sess.run(generated_words, feed_dict={context: feat})
+        word2id, id2word=data_utils.initialize_vocabulary(vocabulary_path='')
+        generated_words = [id2word[index[0]] for index in generated_word_index]
+        return generated_words
