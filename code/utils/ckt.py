@@ -1,9 +1,14 @@
 import data_utils
+from config.Deconfig import Deconfig
 import pickle
 
-with open("/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/f30k/f30k_0.features.pkl", 'rb') as f:
-    features = pickle.load(f)
-print(features)
+ll = data_utils.get_some_captions(5000)
+max = 0
+for l in ll:
+    h = l.split()
+    if max < len(h):
+        max = len(h)
 
+print(max)
 
 

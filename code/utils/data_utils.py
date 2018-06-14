@@ -10,6 +10,10 @@ import json
 import tensorflow as tf
 import numpy as np
 import pickle
+import os
+
+IMAGE_PATH = "/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/flickr30k_images_resize/"
+IMAGE_CAPTIONS_FILE = "/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/results_20130124.token"
 
 # Special vocabulary symbols - we always put them at the start.
 _PAD = b"_PAD"
@@ -23,8 +27,8 @@ EOS_ID = 2
 UNK_ID = 3
 
 # Regular expressions used to tokenize.
-_WORD_SPLIT = re.compile(b"([.,!?\"':;)(])")
-_DIGIT_RE = re.compile(b"\d")
+_WORD_SPLIT = re.compile("([.,!?\"':;)(])")
+_DIGIT_RE = re.compile("\d")
 
 
 def get_captions(file_path, dataset="coco"):
@@ -44,7 +48,8 @@ def get_captions(file_path, dataset="coco"):
     if dataset == "flickr30k":
         with open(file_path) as f:
             for line in f.readlines():
-                caption = line.split()[1]
+                caption = line.split()[1:]
+                caption = " ".join(caption)
                 captions.append(caption)
             return captions
 
@@ -112,6 +117,7 @@ def create_vocabulary(vocabulary_path, captions_list, max_vocabulary_size,
         counter = 0
         for caption in captions_list:
             counter += 1
+            caption = caption.lower()
             if counter % 10000 == 0:
                 print("processing line %d" % counter)
             caption = tf.compat.as_bytes(caption)
@@ -156,7 +162,7 @@ def initialize_vocabulary(vocabulary_path):
         with gfile.GFile(vocabulary_path, mode="rb") as f:
             rev_vocab.extend(f.readlines())
         rev_vocab = [line.strip() for line in rev_vocab]
-        vocab = dict([(x, y) for (y, x) in enumerate(rev_vocab)])
+        vocab = dict([(x.decode(), y) for (y, x) in enumerate(rev_vocab)])
         return vocab, rev_vocab
     else:
         raise ValueError("Vocabulary file %s not found.", vocabulary_path)
@@ -188,7 +194,7 @@ def sentence_to_token_ids(sentence, vocabulary,
     if not normalize_digits:
         return [vocabulary.get(w, UNK_ID) for w in words]
     # Normalize digits by 0 before looking words up in the vocabulary.
-    return [vocabulary.get(_DIGIT_RE.sub(b"0", w), UNK_ID) for w in words]
+    return [vocabulary.get(_DIGIT_RE.sub("0", w), UNK_ID) for w in words]
 
 
 def load_glove(glove_path_directory, dim=100):
@@ -277,6 +283,29 @@ def create_embedding(word2vec, vocab_list, embed_size):
     return embedding
 
 
+def get_f30k_name_list(image_path, just_file_name=False):
+    image_list = []
+    image_path_dir = image_path
+    for l1, l2, l3 in os.walk(image_path):
+        for p in l3:
+            if just_file_name:
+                image_list.append(p)
+            else:
+                image_list.append(image_path_dir + p)
+    return image_list
+
+
+def get_some_captions(caption_numbers, dataset="flickr30k"):
+    captions = []
+    if dataset == "flickr30k":
+        name_list = get_f30k_name_list(IMAGE_PATH, True)
+        image_caption_map = get_img_caption(IMAGE_CAPTIONS_FILE, dataset=dataset)
+        images = name_list[:caption_numbers]
+        for image in images:
+            captions.append(image_caption_map[image].lower())
+        return captions
+
+
 def get_features(features_file):
     """
         input your features_file location and output a feature matrix
@@ -288,3 +317,6 @@ def get_features(features_file):
     with open(features_file, "rb") as f:
         features = pickle.load(f)
     return features
+
+captions = get_captions("/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/annotations/captions_train2014.json")
+create_vocabulary("/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/vocab", captions, 25000)

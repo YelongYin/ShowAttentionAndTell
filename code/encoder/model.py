@@ -7,6 +7,7 @@ from config.Enconfig import Enconfig
 import utils.data_utils as data_utils
 
 
+
 class model():
     def __init__(self,):
 

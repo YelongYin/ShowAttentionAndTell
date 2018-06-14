@@ -3,17 +3,8 @@ from vggnet import Vgg19
 
 import tensorflow as tf
 import numpy as np
-
-import os
-
-
-def get_f30k_name_list(image_path):
-    image_list = []
-    image_path_dir = image_path
-    for l1, l2, l3 in os.walk(image_path):
-        for p in l3:
-            image_list.append(image_path_dir + p)
-    return image_list
+import data_utils
+import pickle
 
 
 def get_f30k_features():
@@ -31,11 +22,12 @@ def get_f30k_features():
         tf.initialize_all_variables().run()
         save_path = './data/f30k/f30k_%d.features.pkl'
         spilt_num = 6
-        image_path = get_f30k_name_list("./flickr30k_images_resize/")
+        image_path = data_utils.get_f30k_name_list("./flickr30k_images_resize/")
         image_path = image_path[:30000]
         each_sum = int(30000 / spilt_num)
         for i in range(spilt_num):
             process_image = image_path[i * each_sum:(i+1) * each_sum]
+            print(process_image)
             n_examples = len(process_image)
             print(n_examples)
             all_feats = np.ndarray([n_examples, 196, 512], dtype=np.float32)
@@ -54,5 +46,18 @@ def get_f30k_features():
             print("Saved %s.." % save_path % i)
 
 
-get_f30k_features()
+def load_pickle(path):
+    with open(path, 'rb') as f:
+        file = pickle.load(f)
+        print ('Loaded %s..' % path)
+        return file
+
+
+def save_pickle(data, path):
+    with open(path, 'wb') as f:
+        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+        print ('Saved %s..' % path)
+
+
+
 
