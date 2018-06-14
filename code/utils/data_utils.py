@@ -3,12 +3,13 @@ from __future__ import division
 from __future__ import print_function
 
 from tensorflow.python.platform import gfile
+from config.Enconfig import Enconfig
 
 import re
 import json
 import tensorflow as tf
 import numpy as np
-from config.Enconfig import Enconfig
+import pickle
 
 # Special vocabulary symbols - we always put them at the start.
 _PAD = b"_PAD"
@@ -59,11 +60,19 @@ def get_img_caption(file_path, dataset="coco"):
          A map of {iamge_id: caption}
     """
     img_caption = {}
-    with open(file_path) as f:
-        caption_data = json.load(f)
-    annotations = caption_data["annotations"]
-    for annotation in annotations:
-        img_caption[annotation['image_id']] = annotation['caption']
+    if dataset == "coco":
+        with open(file_path) as f:
+            caption_data = json.load(f)
+        annotations = caption_data["annotations"]
+        for annotation in annotations:
+            img_caption[annotation['image_id']] = annotation['caption']
+    elif dataset == "flickr30k":
+        with open(file_path) as f:
+            for line in f.readlines():
+                name_caption = line.split()
+                image_name = name_caption[0][:-2]
+                caption = " ".join(name_caption[1:])
+                img_caption[image_name] = caption
     return img_caption
 
 
@@ -200,22 +209,27 @@ def load_glove(glove_path_directory, dim=100):
     return word2vec
 
 
-def get_image_vec(file_path, iamge_path, img_vec_file):
+def get_image_vec(file_path, img_path, img_vec_file, dataset="flickr30k"):
     """
     from dictory obtain image path then convert to image vector,and writer to TFrecored file
     :param file_path:
     :param img_vec_file:
     :return:
     """
-    img_caption = get_img_caption(file_path)
+    img_caption = get_img_caption(file_path, dataset=dataset)
     writer = tf.python_io.TFRecordWriter(img_vec_file)
-    all_img_vec = []
+    counter = 0
     for key in img_caption:
-        image = tf.gfile.FastGFile(iamge_path+'COCO_train2014_'+str(key).zfill(12)+'.jpg', 'rb').read()
+        counter += 1
+        if counter % 25 == 0:
+            print("Processing %d images." % counter)
+        if dataset == "coco":
+            image = tf.gfile.FastGFile(img_path+'COCO_train2014_'+str(key).zfill(12)+'.jpg', 'rb').read()
+        elif dataset == "flickr30k":
+            image = tf.gfile.FastGFile(img_path + str(key), 'rb').read()
         image = tf.image.decode_jpeg(image, channels=3)
         image = tf.image.resize_image_with_crop_or_pad(image, 224, 224)
         image = tf.image.per_image_standardization(image)
-        all_img_vec.append(image)
         image = image.eval().tostring()
         example = tf.train.Example(
             features=tf.train.Features(
@@ -228,7 +242,6 @@ def get_image_vec(file_path, iamge_path, img_vec_file):
         writer.write(example.SerializeToString())
     print('Done!')
     writer.close()
-    return all_img_vec
 
 
 def create_vector(word, word2vec, embed_size, silent=True):
@@ -262,3 +275,16 @@ def create_embedding(word2vec, vocab_list, embed_size):
         word = vocab_list[i]
         embedding[i] = word2vec[word]
     return embedding
+
+
+def get_features(features_file):
+    """
+        input your features_file location and output a feature matrix
+    Args:
+        features_file:
+    Returns:
+         features_matrix
+    """
+    with open(features_file, "rb") as f:
+        features = pickle.load(f)
+    return features
