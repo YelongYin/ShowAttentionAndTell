@@ -2,9 +2,16 @@ import tensorflow as tf
 import tensorflow.contrib as tc
 import math
 import numpy as np
+import pickle
 
 import pandas as pd
-import utils.data_utils as data_utils
+import data_utils
+from config.Deconfig import Deconfig
+
+FEATURES_PATH = "/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/f30k/f30k_0.features.pkl"
+MODEL_PATH = "/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/model/"
+VOCAB_PATH = "/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/vocab"
+
 
 class model(object):
 
@@ -22,11 +29,11 @@ class model(object):
         self._end = 2
         self._pad = 0
 
-
         # variable of initial lstm
         self.init_h_W = self.init_weight(self.D, self.hidden_units, name='init_h_W')
         self.init_h_b = self.init_bias(self.hidden_units, name='init_h_b')
         self.init_c_W = self.init_weight(self.D, self.hidden_units, name='init_c_W')
+        self.init_c_b = self.init_bias(self.hidden_units, name='init_c_b')
 
         # embedding matrix
         self.embedding_matrix = self.init_embedding()
@@ -55,10 +62,10 @@ class model(object):
         self.decode_word_b = self.init_bias(self.vocab_size, name="decode_word_b")
 
     def init_weight(self, dim_in, dim_out, name=None, stddev=1.0):
-        return tf.Variable(tf.truncated_normal([dim_in, dim_out], stddev=stddev / math.sqrt(float(dim_in))), name=name)
+        return tf.get_variable(name=name, dtype=tf.float32, initializer=tf.truncated_normal([dim_in, dim_out], stddev=stddev / math.sqrt(float(dim_in))))
 
     def init_bias(self, dim_out, name=None):
-        return tf.Variable(tf.zeros([dim_out]), name=name)
+        return tf.get_variable(name=name, dtype=tf.float32, initializer=tf.zeros([dim_out]))
 
     def _attention(self, _h, context_encode):
         """
@@ -183,8 +190,8 @@ class model(object):
         :param t: step of LSTM
         :return: loss
         """
-        captions_out = captions[:, 1:]
-        mask = tf.to_int32(tf.not_equal(captions_out, self._end or self._pad))
+        captions_out = captions[:, :]
+        mask = tf.to_float(tf.not_equal(captions_out, self._end or self._pad))
         # shape:[batch_size, 1]
         labels = tf.expand_dims(captions[:, t], 1)
         # shape:[batch_size, 1]
@@ -197,14 +204,13 @@ class model(object):
 
         loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(logits=logit, labels=onehot_labels) * mask[:, t])
 
-
         loss = loss/tf.to_float(self.batch_size)
+
         return loss
 
     def optimizer(self, learning_rate, loss):
         train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
         return train_op
-
 
     def build_model(self):
         """
@@ -228,9 +234,10 @@ class model(object):
             if ind == 0:
                 word_emb = tf.zeros([self.batch_size, self.embedding_size])
             else:
-                tf.get_variable_scope().reuse_variables()
-                with tf.device("/cpu:0"):
-                    word_emb = self.word_embedding(self.embedding_matrix, sentence[:, ind-1])
+                with tf.variable_scope(tf.get_variable_scope()):
+                    tf.get_variable_scope().reuse_variables()
+                    with tf.device("/cpu:0"):
+                        word_emb = self.word_embedding(self.embedding_matrix, sentence[:, ind-1])
 
             # shape: [batch_size, 1]
             labels = tf.expand_dims(sentence[:, ind], 1)
@@ -255,15 +262,16 @@ class model(object):
             loss = loss + current_loss
         return loss, context, sentence
 
-    def train(self, pretrained_model_path):
-        annotation_data = pd.read_pickle("")
+    def train(self, pretrained_model_path=None):
         # get captions and feats
-        captions = None
-        feats = None
+        captions = data_utils.get_some_captions(5000)
+        # shape:[5000, 192, 512]
+        feats = data_utils.get_features(FEATURES_PATH)
+
         maxlen = self.n_time_step
 
         # get word2ix, ixtoword dictionary
-        word2ix, ixtoword = data_utils.initialize_vocabulary("vocab_25000")
+        word2ix, ixtoword = data_utils.initialize_vocabulary(VOCAB_PATH)
 
         learning_rate = self.learning_rate
         n_words = len(word2ix)
@@ -280,13 +288,6 @@ class model(object):
             print("Starting with pretrained model")
             saver.restore(sess, pretrained_model_path)
 
-        index = list(annotation_data.index)
-        np.random.shuffle(index)
-        annotation_data = annotation_data.ix[index]
-
-        captions = annotation_data['caption'].values
-        image_id = annotation_data['image_id'].values
-
         for epoch in range(self.epochs):
             for start, end in zip(range(0, len(captions), self.batch_size),
                                   range(self.batch_size, len(captions), self.batch_size)):
@@ -294,28 +295,27 @@ class model(object):
                 current_feats = current_feats.reshape(-1, self.D, self.L).swapaxes(1, 2)
 
                 current_captions = captions[start:end]
-                current_captions_ind = data_utils.sentence_to_token_ids(current_captions, word2ix)
 
-                if current_captions_ind < maxlen:
-                    current_captions_ind = data_utils.GO_ID + current_captions_ind + data_utils.EOS_ID
-                    current_captions_ind = current_captions_ind + (maxlen - len(current_captions_ind)) * data_utils.PAD_ID
+                current_captions_ind = []
+                for caption in current_captions:
+                    caption2id = data_utils.sentence_to_token_ids(caption, word2ix)
+                    if len(caption2id) < maxlen:
+                        caption2id = [data_utils.GO_ID] + caption2id + [data_utils.EOS_ID]
+                        caption2id = caption2id + [data_utils.PAD_ID] * (maxlen - len(caption2id))
+                    current_captions_ind.append(caption2id)
 
-                assert len(current_captions_ind) == self.n_time_step
+                current_captions_ind = np.asarray(current_captions_ind)
 
                 _, loss_value = sess.run([train_op, loss], feed_dict={
                     context: current_feats,
                     sentence: current_captions_ind
                 })
 
-                print("Current loss:", loss_value)
-            saver.save(sess, "", global_step=epoch)
-
-
-
-
+                print("Epoch:%d, Current loss:" % epoch, loss_value)
+            saver.save(sess, MODEL_PATH, global_step=epoch)
 
     def build_generator(self):
-        context = tf.placeholder("float32", [self.batch_size, self.ctx_shape[0], self.ctx_shape[1]])
+        context = tf.placeholder("float32", [self.batch_size, self.L, self.D])
         context_encode = tf.matmul(tf.squeeze(context), self.image_att_W)
         h, c = self.init_LSTM(context)
         word_emb = tf.zeros([1, self.embedding_size])
@@ -349,3 +349,6 @@ class model(object):
         generated_words = [id2word[index[0]] for index in generated_word_index]
         return generated_words
 
+
+gen_model = model(Deconfig)
+gen_model.train()
