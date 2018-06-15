@@ -295,12 +295,12 @@ def get_f30k_name_list(image_path, just_file_name=False):
     return image_list
 
 
-def get_some_captions(caption_numbers, dataset="flickr30k"):
+def get_some_captions(caption_numbers, start_index=0, dataset="flickr30k"):
     captions = []
     if dataset == "flickr30k":
         name_list = get_f30k_name_list(IMAGE_PATH, True)
         image_caption_map = get_img_caption(IMAGE_CAPTIONS_FILE, dataset=dataset)
-        images = name_list[:caption_numbers]
+        images = name_list[start_index * caption_numbers:(start_index+1) * caption_numbers]
         for image in images:
             captions.append(image_caption_map[image].lower())
         return captions
@@ -318,5 +318,3 @@ def get_features(features_file):
         features = pickle.load(f)
     return features
 
-captions = get_captions("/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/annotations/captions_train2014.json")
-create_vocabulary("/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/vocab", captions, 25000)

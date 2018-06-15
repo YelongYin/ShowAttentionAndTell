@@ -274,6 +274,7 @@ class model(object):
     def train(self, pretrained_model_path=None):
         # get captions and feats
         captions = data_utils.get_some_captions(5000)
+        print(len(captions))
         # shape:[5000, 192, 512]
         feats = data_utils.get_features(FEATURES_PATH)
 
@@ -291,7 +292,7 @@ class model(object):
         saver = tf.train.Saver(max_to_keep=25)
 
         train_op = self.optimizer(learning_rate, loss)
-        tf.initialize_all_variables().run()
+        tf.global_variables_initializer().run()
 
         if pretrained_model_path is not None:
             print("Starting with pretrained model")
@@ -328,12 +329,12 @@ class model(object):
         context_encode = tf.matmul(tf.squeeze(context), self.image_att_W)
         h, c = self.init_LSTM(context)
         word_emb = tf.zeros([1, self.embedding_size])
-        generated_words=[]
-        logit_list=[]
+        generated_words = []
+        logit_list = []
         for t in range(self.n_time_step):
             context_encode = context_encode + tf.matmul(h, self.hidden_att_W) + self.pre_att_b
             context_encode = tf.nn.tanh(context_encode)
-            alpha = self._attention(h,context_encode)
+            alpha = self._attention(h, context_encode)
             weighted_context = tf.reduce_sum(tf.squeeze(context) * alpha, 0)
             weighted_context = tf.expand_dims(weighted_context, 0)
             h, o, c = self._lstm_function(word_emb, h, weighted_context, c)
@@ -347,17 +348,17 @@ class model(object):
 
         return context, generated_words, logit_list
 
-    def test(self,model_path,test_feat):
+    def test(self, model_path, test_feat):
         feat = np.load(test_feat)
         context, generated_words, logit_list = self.build_generator()
         sess = tf.InteractiveSession()
         saver = tf.train.Saver()
         saver.restore(sess, model_path)
         generated_word_index = sess.run(generated_words, feed_dict={context: feat})
-        word2id, id2word=data_utils.initialize_vocabulary(vocabulary_path='')
+        word2id, id2word = data_utils.initialize_vocabulary(vocabulary_path='')
         generated_words = [id2word[index[0]] for index in generated_word_index]
         return generated_words
 
 
 gen_model = model(Deconfig)
-gen_model.train()
+gen_model.train(MODEL_PATH + "-746")
