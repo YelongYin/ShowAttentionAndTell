@@ -8,7 +8,13 @@ import re
 import json
 import tensorflow as tf
 import numpy as np
-from Enconfig import Enconfig
+
+import pickle
+import os
+
+IMAGE_PATH = "/home/yyl/PycharmProjects/ShowAttentionAndTell/data/f30k/flickr30k_images_resize/"
+IMAGE_CAPTIONS_FILE = "/home/yyl/PycharmProjects/ShowAttentionAndTell/data/results_20130124.token"
+
 
 # Special vocabulary symbols - we always put them at the start.
 _PAD = b"_PAD"
@@ -288,4 +294,43 @@ def split_bucket(captions,threshold):
                 split_captions[j+1].append(data[i])
                 break
     return split_captions
+
+
+def get_f30k_name_list(image_path, just_file_name=False):
+    image_list = []
+    image_path_dir = image_path
+    for l1, l2, l3 in os.walk(image_path):
+        for p in l3:
+            if just_file_name:
+                image_list.append(p)
+            else:
+                image_list.append(image_path_dir + p)
+    return image_list
+
+
+def get_some_captions(caption_numbers, dataset="flickr30k"):
+    captions = []
+    if dataset == "flickr30k":
+        name_list = get_f30k_name_list(IMAGE_PATH, True)
+        image_caption_map = get_img_caption(IMAGE_CAPTIONS_FILE, dataset=dataset)
+        images = name_list[:caption_numbers]
+        for image in images:
+            captions.append(image_caption_map[image].lower())
+        return captions
+
+
+def get_features(features_file):
+    """
+        input your features_file location and output a feature matrix
+    Args:
+        features_file:
+    Returns:
+         features_matrix
+    """
+    with open(features_file, "rb") as f:
+        features = pickle.load(f)
+    return features
+
+#captions = get_captions("/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/annotations/captions_train2014.json")
+#create_vocabulary("/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/vocab", captions, 25000)
 
