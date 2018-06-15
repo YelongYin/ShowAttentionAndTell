@@ -9,11 +9,18 @@ import re
 import json
 import tensorflow as tf
 import numpy as np
+
+
 import pickle
 import os
+"""
+IMAGE_PATH = "/home/yyl/PycharmProjects/ShowAttentionAndTell/data/f30k/flickr30k_images_resize/"
+IMAGE_CAPTIONS_FILE = "/home/yyl/PycharmProjects/ShowAttentionAndTell/data/results_20130124.token"
+"""
 
 IMAGE_PATH = "/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/flickr30k_images_resize/"
 IMAGE_CAPTIONS_FILE = "/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/results_20130124.token"
+
 
 # Special vocabulary symbols - we always put them at the start.
 _PAD = b"_PAD"
@@ -283,6 +290,29 @@ def create_embedding(word2vec, vocab_list, embed_size):
     return embedding
 
 
+def split_bucket(captions,threshold):
+    '''
+    split cpations to some subsets accord the length threshold
+    :param captions: original data
+    :param threshold: length threshold
+    :return: subsets of after splitting[len(threshold)+1]
+    '''
+    captions_length=[len(caption) for caption in captions]
+    num_subdata = len(threshold)
+    split_captions = []
+    for i in range(num_subdata+1):
+        split_captions.append([])
+    for i in range(len(captions_length)):
+        for j in range(num_subdata):
+            if(captions_length[i] <= threshold[j]):
+                split_captions[j].append(captions[i])
+                break
+            elif(j==num_subdata-1):
+                split_captions[j+1].append(data[i])
+                break
+    return split_captions
+
+
 def get_f30k_name_list(image_path, just_file_name=False):
     image_list = []
     image_path_dir = image_path
@@ -318,5 +348,4 @@ def get_features(features_file):
         features = pickle.load(f)
     return features
 
-captions = get_captions("/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/annotations/captions_train2014.json")
-create_vocabulary("/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/vocab", captions, 25000)
+
