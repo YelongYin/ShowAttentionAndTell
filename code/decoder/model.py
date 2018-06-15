@@ -8,9 +8,15 @@ import pandas as pd
 import data_utils
 from config.Deconfig import Deconfig
 
+"""
 FEATURES_PATH = "/home/yyl/PycharmProjects/ShowAttentionAndTell/data/f30k/f30k_0.features.pkl"
 MODEL_PATH = "/home/yyl/PycharmProjects/ShowAttentionAndTell/model/"
 VOCAB_PATH = "/home/yyl/PycharmProjects/ShowAttentionAndTell/data/vocab"
+"""
+FEATURES_PATH = "/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/f30k/f30k_0.features.pkl"
+MODEL_PATH = "/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/model/"
+VOCAB_PATH = "/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/vocab"
+
 
 
 class model(object):
@@ -267,6 +273,7 @@ class model(object):
         captions = data_utils.get_some_captions(5000)
         # shape:[5000, 192, 512]
         feats = data_utils.get_features(FEATURES_PATH)
+
         maxlen = self.n_time_step
 
         # get word2ix, ixtoword dictionary
@@ -315,6 +322,7 @@ class model(object):
 
     def build_generator(self):
         context = tf.placeholder("float32", [self.batch_size, self.L, self.D])
+
         h, c = self.init_LSTM(context)
         context_flat = tf.reshape(context, [-1, self.D])
         context_encode = tf.matmul(tf.squeeze(context_flat), self.image_att_W)
@@ -348,6 +356,7 @@ class model(object):
         sess = tf.InteractiveSession()
         saver = tf.train.Saver()
         saver.restore(sess, model_path)
+
         generated_word_index = sess.run(generated_words, feed_dict={context: feats[:100]})
         word2id, id2word=data_utils.initialize_vocabulary(vocabulary_path=VOCAB_PATH)
         generated_captions = []
@@ -364,3 +373,13 @@ captions = data_utils.get_some_captions(100)
 for i in range(100):
     print(captions[i])
     print(generated_captions[i])
+
+        generated_word_index = sess.run(generated_words, feed_dict={context: feat})
+        word2id, id2word=data_utils.initialize_vocabulary(vocabulary_path='')
+        generated_words = [id2word[index[0]] for index in generated_word_index]
+        return generated_words
+
+"""
+gen_model = model(Deconfig)
+gen_model.train()
+"""

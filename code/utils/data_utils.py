@@ -3,17 +3,23 @@ from __future__ import division
 from __future__ import print_function
 
 from tensorflow.python.platform import gfile
+from config.Enconfig import Enconfig
 
 import re
 import json
 import tensorflow as tf
 import numpy as np
 
+
 import pickle
 import os
-
+"""
 IMAGE_PATH = "/home/yyl/PycharmProjects/ShowAttentionAndTell/data/f30k/flickr30k_images_resize/"
 IMAGE_CAPTIONS_FILE = "/home/yyl/PycharmProjects/ShowAttentionAndTell/data/results_20130124.token"
+"""
+
+IMAGE_PATH = "/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/flickr30k_images_resize/"
+IMAGE_CAPTIONS_FILE = "/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/results_20130124.token"
 
 
 # Special vocabulary symbols - we always put them at the start.
@@ -49,7 +55,8 @@ def get_captions(file_path, dataset="coco"):
     if dataset == "flickr30k":
         with open(file_path) as f:
             for line in f.readlines():
-                caption = line.split()[1]
+                caption = line.split()[1:]
+                caption = " ".join(caption)
                 captions.append(caption)
             return captions
 
@@ -65,11 +72,19 @@ def get_img_caption(file_path, dataset="coco"):
          A map of {iamge_id: caption}
     """
     img_caption = {}
-    with open(file_path) as f:
-        caption_data = json.load(f)
-    annotations = caption_data["annotations"]
-    for annotation in annotations:
-        img_caption[annotation['image_id']] = annotation['caption']
+    if dataset == "coco":
+        with open(file_path) as f:
+            caption_data = json.load(f)
+        annotations = caption_data["annotations"]
+        for annotation in annotations:
+            img_caption[annotation['image_id']] = annotation['caption']
+    elif dataset == "flickr30k":
+        with open(file_path) as f:
+            for line in f.readlines():
+                name_caption = line.split()
+                image_name = name_caption[0][:-2]
+                caption = " ".join(name_caption[1:])
+                img_caption[image_name] = caption
     return img_caption
 
 
@@ -109,6 +124,7 @@ def create_vocabulary(vocabulary_path, captions_list, max_vocabulary_size,
         counter = 0
         for caption in captions_list:
             counter += 1
+            caption = caption.lower()
             if counter % 10000 == 0:
                 print("processing line %d" % counter)
             caption = tf.compat.as_bytes(caption)
@@ -153,7 +169,7 @@ def initialize_vocabulary(vocabulary_path):
         with gfile.GFile(vocabulary_path, mode="rb") as f:
             rev_vocab.extend(f.readlines())
         rev_vocab = [line.strip() for line in rev_vocab]
-        vocab = dict([(x, y) for (y, x) in enumerate(rev_vocab)])
+        vocab = dict([(x.decode(), y) for (y, x) in enumerate(rev_vocab)])
         return vocab, rev_vocab
     else:
         raise ValueError("Vocabulary file %s not found.", vocabulary_path)
@@ -185,7 +201,7 @@ def sentence_to_token_ids(sentence, vocabulary,
     if not normalize_digits:
         return [vocabulary.get(w, UNK_ID) for w in words]
     # Normalize digits by 0 before looking words up in the vocabulary.
-    return [vocabulary.get(_DIGIT_RE.sub(b"0", w), UNK_ID) for w in words]
+    return [vocabulary.get(_DIGIT_RE.sub("0", w), UNK_ID) for w in words]
 
 
 def load_glove(glove_path_directory, dim=100):
@@ -206,28 +222,32 @@ def load_glove(glove_path_directory, dim=100):
     return word2vec
 
 
-def get_image_vec(file_path,img_path,img_vec_file):
+def get_image_vec(file_path, img_path, img_vec_file, dataset="flickr30k"):
     """
     from dictory obtain image path then convert to image vector,and writer to TFrecored file
     :param file_path:
     :param img_vec_file:
     :return:
     """
-    img_caption=get_img_caption(file_path)
-    writer=tf.python_io.TFRecordWriter(img_vec_file)
-    all_img_vec=[]
+    img_caption = get_img_caption(file_path, dataset=dataset)
+    writer = tf.python_io.TFRecordWriter(img_vec_file)
+    counter = 0
     for key in img_caption:
-        image=tf.gfile.FastGFile(img_path+'COCO_train2014_'+str(key).zfill(12)+'.jpg','rb').read()
-        image=tf.image.decode_jpeg(image,channels=3)
-        image=tf.image.resize_image_with_crop_or_pad(image,224,224)
-        image=tf.image.per_image_standardization(image)
-        all_img_vec.append(image)
-        #image=tf.image.convert_image_dtype(image,dtype=tf.float32)
-        image=image.eval().tostring()
-        example=tf.train.Example(
+        counter += 1
+        if counter % 25 == 0:
+            print("Processing %d images." % counter)
+        if dataset == "coco":
+            image = tf.gfile.FastGFile(img_path+'COCO_train2014_'+str(key).zfill(12)+'.jpg', 'rb').read()
+        elif dataset == "flickr30k":
+            image = tf.gfile.FastGFile(img_path + str(key), 'rb').read()
+        image = tf.image.decode_jpeg(image, channels=3)
+        image = tf.image.resize_image_with_crop_or_pad(image, 224, 224)
+        image = tf.image.per_image_standardization(image)
+        image = image.eval().tostring()
+        example = tf.train.Example(
             features=tf.train.Features(
                 feature={
-                    'image':tf.train.Feature(bytes_list=tf.train.BytesList(value=[image]))
+                    'image': tf.train.Feature(bytes_list=tf.train.BytesList(value=[image]))
                 }
             )
         )
@@ -235,9 +255,6 @@ def get_image_vec(file_path,img_path,img_vec_file):
         writer.write(example.SerializeToString())
     print('Done!')
     writer.close()
-    return all_img_vec
-
-
 
 
 def create_vector(word, word2vec, embed_size, silent=True):
@@ -256,7 +273,6 @@ def create_vector(word, word2vec, embed_size, silent=True):
     return vector
 
 
-
 def create_embedding(word2vec, vocab_list, embed_size):
     """
         create embedding matrix if use glove or word2vec
@@ -272,6 +288,7 @@ def create_embedding(word2vec, vocab_list, embed_size):
         word = vocab_list[i]
         embedding[i] = word2vec[word]
     return embedding
+
 
 def split_bucket(captions,threshold):
     '''
@@ -331,6 +348,4 @@ def get_features(features_file):
         features = pickle.load(f)
     return features
 
-#captions = get_captions("/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/annotations/captions_train2014.json")
-#create_vocabulary("/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/vocab", captions, 25000)
 

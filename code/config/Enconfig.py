@@ -2,7 +2,11 @@ class Enconfig:
     """
     this class is used to define some param of encoder
     """
-    bacth_size=16
-    file_path='I:/DataBase/image/annotations/captions_train2014.json'
-    img_path='I:/DataBase/image/train2014/'
-    img_vec_file='I:/Code_ML_Pycharm/ShowAttentionAndTell/data/img_vec_file_1.tfrecords'
+    batch_size = 16
+    ##img_path = '/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/flickr30k_images'
+    img_vec_file = 'img_vec_file.tfrecords'
+    vgg_parameter_file = 'vgg16.npy'
+    feature5_1_file = 'feature5_1_image.pickle'
+    feature5_2_file = 'feature5_2_image.pickle'
+    feature5_3_file = 'feature5_3_image.pickle'
+
