@@ -92,6 +92,15 @@ class model(object):
 
         return alpha
 
+    def _hard_attention(self, _h, context_encode):
+        """
+        This function is used to implement hard_attention
+        :param _h:
+        :param context_encode:
+        :return:
+        """
+        pass
+
     def _lstm_function(self, _xt, _h, _context, _c):
         """
         This function is used to implement lstm_cell function
