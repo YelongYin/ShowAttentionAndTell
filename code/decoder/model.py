@@ -8,9 +8,15 @@ import pandas as pd
 import data_utils
 from config.Deconfig import Deconfig
 
+"""
+FEATURES_PATH = "/home/yyl/PycharmProjects/ShowAttentionAndTell/data/f30k/f30k_0.features.pkl"
+MODEL_PATH = "/home/yyl/PycharmProjects/ShowAttentionAndTell/model/"
+VOCAB_PATH = "/home/yyl/PycharmProjects/ShowAttentionAndTell/data/vocab"
+"""
 FEATURES_PATH = "/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/f30k/f30k_0.features.pkl"
 MODEL_PATH = "/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/model/"
 VOCAB_PATH = "/home/lemin/1TBdisk/PycharmProjects/ShowAttentionAndTell/data/vocab"
+
 
 
 class model(object):
@@ -91,15 +97,6 @@ class model(object):
         alpha = tf.nn.softmax(alpha)
 
         return alpha
-
-    def _hard_attention(self, _h, context_encode):
-        """
-        This function is used to implement hard_attention
-        :param _h:
-        :param context_encode:
-        :return:
-        """
-        pass
 
     def _lstm_function(self, _xt, _h, _context, _c):
         """
@@ -274,7 +271,6 @@ class model(object):
     def train(self, pretrained_model_path=None):
         # get captions and feats
         captions = data_utils.get_some_captions(5000)
-        print(len(captions))
         # shape:[5000, 192, 512]
         feats = data_utils.get_features(FEATURES_PATH)
 
@@ -292,7 +288,7 @@ class model(object):
         saver = tf.train.Saver(max_to_keep=25)
 
         train_op = self.optimizer(learning_rate, loss)
-        tf.global_variables_initializer().run()
+        tf.initialize_all_variables().run()
 
         if pretrained_model_path is not None:
             print("Starting with pretrained model")
@@ -326,17 +322,23 @@ class model(object):
 
     def build_generator(self):
         context = tf.placeholder("float32", [self.batch_size, self.L, self.D])
-        context_encode = tf.matmul(tf.squeeze(context), self.image_att_W)
+
         h, c = self.init_LSTM(context)
+        context_flat = tf.reshape(context, [-1, self.D])
+        context_encode = tf.matmul(tf.squeeze(context_flat), self.image_att_W)
+        context_encode = tf.reshape(context_encode, [-1, self.L, self.D])
+
         word_emb = tf.zeros([1, self.embedding_size])
-        generated_words = []
-        logit_list = []
+        generated_words=[]
+        logit_list=[]
         for t in range(self.n_time_step):
-            context_encode = context_encode + tf.matmul(h, self.hidden_att_W) + self.pre_att_b
-            context_encode = tf.nn.tanh(context_encode)
-            alpha = self._attention(h, context_encode)
-            weighted_context = tf.reduce_sum(tf.squeeze(context) * alpha, 0)
-            weighted_context = tf.expand_dims(weighted_context, 0)
+
+            #context_encode = context_encode + tf.matmul(h, self.hidden_att_W) + self.pre_att_b
+            #context_encode = tf.nn.tanh(context_encode)
+            alpha = self._attention(h,context_encode)
+            weighted_context = tf.reduce_sum(context * tf.expand_dims(alpha, 2), 1)
+            #weighted_context = tf.reduce_sum(tf.squeeze(context_encode) * alpha, 0)
+            #weighted_context = tf.expand_dims(weighted_context, 0)
             h, o, c = self._lstm_function(word_emb, h, weighted_context, c)
             logits_word = self._predict(h)
             max_prob_word = tf.argmax(logits_word, 1)
@@ -348,17 +350,36 @@ class model(object):
 
         return context, generated_words, logit_list
 
-    def test(self, model_path, test_feat):
-        feat = np.load(test_feat)
+    def test(self, model_path):
+        feats = data_utils.get_features(FEATURES_PATH)
         context, generated_words, logit_list = self.build_generator()
         sess = tf.InteractiveSession()
         saver = tf.train.Saver()
         saver.restore(sess, model_path)
-        generated_word_index = sess.run(generated_words, feed_dict={context: feat})
-        word2id, id2word = data_utils.initialize_vocabulary(vocabulary_path='')
-        generated_words = [id2word[index[0]] for index in generated_word_index]
-        return generated_words
+
+        generated_word_index = sess.run(generated_words, feed_dict={context: feats[:100]})
+        word2id, id2word=data_utils.initialize_vocabulary(vocabulary_path=VOCAB_PATH)
+        generated_captions = []
+        for i in range(self.batch_size):
+            generated_caption = [id2word[index[i]] for index in generated_word_index]
+            generated_captions.append(generated_caption)
+        return generated_captions
 
 
 gen_model = model(Deconfig)
-gen_model.train(MODEL_PATH + "-746")
+generated_captions = gen_model.test(MODEL_PATH+ '-746')
+captions = data_utils.get_some_captions(100)
+
+for i in range(100):
+    print(captions[i])
+    print(generated_captions[i])
+
+        generated_word_index = sess.run(generated_words, feed_dict={context: feat})
+        word2id, id2word=data_utils.initialize_vocabulary(vocabulary_path='')
+        generated_words = [id2word[index[0]] for index in generated_word_index]
+        return generated_words
+
+"""
+gen_model = model(Deconfig)
+gen_model.train()
+"""
